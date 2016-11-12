@@ -1,0 +1,171 @@
+---
+title: "Machine learning Week 4"
+author: "Tom van Dienst"
+date: "November 12, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##Introduction
+In this assignment we'll be taking a look at excercise statistics and create a model with wich to predict in what way someone performed a certain exercise.  
+  
+We'll be making use of the WLE (Weight Lift Exercise) dataset found at this link: http://groupware.les.inf.puc-rio.br/har. 
+```{r  message=FALSE}
+library(caret)
+library(doMC)
+sourcefile  <- read.csv("pml-training.csv", stringsAsFactors = FALSE)
+
+```
+
+##Data scrubbing
+Let's take a first look at the dataset and what's included. 
+
+```{r }
+dim(sourcefile)
+```
+
+The dataset consists of 160 attributes and 19622 observations. The value we want to predict is called "classe" and consists of five different values labeled A through E. 
+
+```{r}
+table(sourcefile$classe)
+```
+
+Before we can start, we need to clean up the data a bit. There are some values with a bad notation which need to be altered. 
+We take the following actions on our data:
+
+1.	Any values of '#DIV/0' will be renamed to '' 
+2.	Any values of '' will be transformed to NA 
+3. 	The following columns will be changed to factors:
+	1.	classe 
+	2.	user_name (The person who performed the exercise)
+	3.	new_window (Indication if a new timeseries is started)
+
+```{r}
+#Let's clean out the div/0 errors and convert the strings to numericals 
+#We have a list of columns that do not contain numericals. 
+nonnum <- c("classe", "user_name", "new_window", "cvtd_timestamp")
+#And a list of columns that need to be considered a factor
+fact <- c("classe", "user_name", "new_window")
+
+for(i in 1:ncol(sourcefile))
+{
+    if(class(sourcefile[,i]) == "character" & !(colnames(sourcefile)[i] %in%  nonnum))
+    {
+        sourcefile[,i] <- gsub('#DIV/0!', '', sourcefile[,i])
+        sourcefile[sourcefile[,i]=="", i] <- NA
+        sourcefile[,i] <- as.numeric(sourcefile[,i])
+    }
+}
+
+    
+#turn cvtd_timestamp in a date format 
+sourcefile$cvtd_timestamp <- as.POSIXct( strptime( sourcefile$cvtd_timestamp, "%d/%m/%Y %H:%M"))
+#create factor columns
+sourcefile[, colnames(sourcefile) %in% fact]  <- data.frame(lapply((sourcefile[, colnames(sourcefile) %in% fact]), factor))
+
+```
+
+##Creating test and training sets
+
+Next we'll be creating our test and training sets. A selection on Classe with 70% for training and 30% for testing. 
+```{r}
+
+#Setting up the training and test sets
+set.seed(12345)
+intrain <- createDataPartition(sourcefile$classe, p=0.7, list=FALSE)
+
+training <- sourcefile[intrain, ]
+test <- sourcefile[-intrain, ]
+```
+
+There are a few attributes which are not relevant for the prediction of the classe value. For this assignment we'll only be focusing on the data from the sensors and the additional info such as who performed the action. To prevent a bias from the time notation, we'll remove all time related attributes. 
+
+```{r}
+
+
+#Remove ID field, windownumber and timestamps to reduce bias
+remcol <- c("X", "num_window", "cvtd_timestamp", "raw_timestamp_part_1", "raw_timestamp_part_2")
+
+sourcefile <- sourcefile[, !(colnames(sourcefile) %in% remcol)]
+```
+
+
+Next we also remove any columns that only contain aggregated values. These columns are only filled for the observations where new_window == "yes". To be absolutely sure, we remove all columns that contain an NA value. 
+After all this we end up with 54 attributes that can be use for the observations and the classe attribute which needs to be predicted. 
+
+
+```{r}
+#Remove the columns with NA values. 
+nalist  <- as.vector(sapply(training, anyNA))
+training <- training[, !nalist] 
+
+```
+
+##Setting up the model and cross validation
+
+Because we're predicting a factor and not a numerical value, we turn to one of the classification models. There are many models to choose from, but my choice ends up with a random forests model. I chose this model because it has a very high accuracy rate. The downside is that it's considered a black box, I won't be able to explain WHY it ended up with this model. Considering the amount of attributes and observations, I will take this downside for granted. 
+
+Before we start our model, I will need to set up the cross validaton. It's of course possible to use the standard functions in caret, but my laptop is not a speed monster so I will be a bit more gentle with the settings. For this exercise we'll make use of a crossvalidation with a 5 k-fold. Again, I value my sanity so I will refrain from a repeated cross validation. 
+
+```{r}
+trcl  <- trainControl(method="cv", number = 5)
+```
+
+
+##Running the model
+Now we can start our prediction, we'll make a model to predict classe with all possible predictors. Our method will be "rf" (random forest) and we'll use the train control we defined in the previous section. Because my patience only goes so far, I've also enabled a parallel processing session with the DoMC library. And now let's start the training....  
+
+```{r message=FALSE}
+
+#Perform parallel processing with 3 cores
+registerDoMC(cores=3)
+#Make a random forests model 
+modrf  <- train(classe ~ ., data=training, method = "rf", trControl = trcl)
+```
+
+...  
+...  
+...  
+..  
+.  
+
+I forgot to mention that another downside of random forests is that it takes so LONG for them to finish!. But finally we're done. Just out of curiosity how long did it take? 
+
+```{r}
+modrf$times$everything
+```
+
+Wow.. Good thing I enabled the multicore or I would be here a whole lot longer. The difference bewtween user and elapsed shows that multicore allowed a speed increase. But of course the real question is, how accurate is our model? Let's take a look? 
+
+```{r}
+modrf$finalModel
+```
+
+That's not bad at all! An error rate of less than 1%! Of course this is just from the cross validation. The problem with a small k-fold is that we have more bias in our model training. So how does it perform against our untouched test set? We'll set up a confusion matrix with the test$classe variable and the answer from our predictions...
+
+##Testing the model
+
+```{r}
+confusionMatrix(test$classe, predict(modrf, test))$overall
+```
+
+Still not bad! An accuracy of `r round(confusionMatrix(test$classe, predict(modrf, test))$overall[1] * 100,2)`%! Normally I like to plaster my assignments with lots of charts, but I haven't really been able to do that so far. So let's create a chart to show of our performance. Here's our confusion matrix in pretty colors: 
+
+```{r message=FALSE}
+library(dplyr)
+dt <- data.frame(test = test$classe, predict = predict(modrf, test)) %>%
+    group_by( test, predict) %>%
+    tally()
+g  <- ggplot(data=dt, aes(x=test, y=predict))
+g <- g + geom_tile(aes(fill=n), alpha=0.8)
+g <- g + ggtitle("Confusion matrix. Predicted vs Actual outcomes on test set")
+g <- g + scale_fill_continuous(name = "Number of records")
+print(g)
+```
+
+##Conclusion
+So what did we achieve? We created a  model wich can, with very high accuracy, predict the performed actions based only on sensor data and the username. A random forest is a powerful tool, but it takes a long time to predict and we still don't know HOW it got to this conclusion.  
+  
+A possible improvement could be to take the timeseries as a whole and to use it for the prediction. It might make it easier on the model building. But for now I'm satisfied with the results.  
