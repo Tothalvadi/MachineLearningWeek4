@@ -215,8 +215,28 @@ modrf  &lt;- train(classe ~ ., data=training, method = &quot;rf&quot;, trControl
 <p>I forgot to mention that another downside of random forests is that it takes so LONG for them to finish!. But finally we’re done. Just out of curiosity how long did it take?</p>
 <pre class="r"><code>modrf$times$everything</code></pre>
 <pre><code>##    user  system elapsed 
-## 580.012   2.172 328.946</code></pre>
+## 573.744   2.036 332.355</code></pre>
 <p>Wow.. Good thing I enabled the multicore or I would be here a whole lot longer. The difference bewtween user and elapsed shows that multicore allowed a speed increase. But of course the real question is, how accurate is our model? Let’s take a look?</p>
+<pre class="r"><code>modrf</code></pre>
+<pre><code>## Random Forest 
+## 
+## 13737 samples
+##    59 predictors
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## No pre-processing
+## Resampling: Cross-Validated (5 fold) 
+## Summary of sample sizes: 10989, 10990, 10990, 10989, 10990 
+## Resampling results across tuning parameters:
+## 
+##   mtry  Accuracy   Kappa    
+##    2    0.9977433  0.9971456
+##   32    0.9999272  0.9999079
+##   63    0.9998544  0.9998159
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final value used for the model was mtry = 32.</code></pre>
+<p>Looks like we got an accuracy of more than 99%. That’s very good as far as I’m concerned. Now let’s also take a look at our final model.</p>
 <pre class="r"><code>modrf$finalModel</code></pre>
 <pre><code>## 
 ## Call:
@@ -233,7 +253,7 @@ modrf  &lt;- train(classe ~ ., data=training, method = &quot;rf&quot;, trControl
 ## C    0    0 2396    0    0 0.0000000000
 ## D    0    0    0 2252    0 0.0000000000
 ## E    0    0    0    0 2525 0.0000000000</code></pre>
-<p>That’s not bad at all! An error rate of less than 1%! Of course this is just from the cross validation. The problem with a small k-fold is that we have more bias in our model training. So how does it perform against our untouched test set? We’ll set up a confusion matrix with the test$classe variable and the answer from our predictions…</p>
+<p>That’s not bad at all! An error rate of less than 0.1%! Of course this is just from the cross validation. The problem with a small k-fold is that we have more bias in our model training. So how does it perform against our untouched test set? We’ll set up a confusion matrix with the test$classe variable and the answer from our predictions…</p>
 </div>
 <div id="testing-the-model" class="section level2">
 <h2>Testing the model</h2>

@@ -140,10 +140,16 @@ modrf$times$everything
 Wow.. Good thing I enabled the multicore or I would be here a whole lot longer. The difference bewtween user and elapsed shows that multicore allowed a speed increase. But of course the real question is, how accurate is our model? Let's take a look? 
 
 ```{r}
+modrf
+```
+
+Looks like we got an accuracy of more than 99%. That's very good as far as I'm concerned. Now let's also take a look at our final model.
+
+```{r}
 modrf$finalModel
 ```
 
-That's not bad at all! An error rate of less than 1%! Of course this is just from the cross validation. The problem with a small k-fold is that we have more bias in our model training. So how does it perform against our untouched test set? We'll set up a confusion matrix with the test$classe variable and the answer from our predictions...
+That's not bad at all! An error rate of less than 0.1%! Of course this is just from the cross validation. The problem with a small k-fold is that we have more bias in our model training. So how does it perform against our untouched test set? We'll set up a confusion matrix with the test$classe variable and the answer from our predictions...
 
 ##Testing the model
 
